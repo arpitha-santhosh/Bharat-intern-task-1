@@ -1,0 +1,56 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow import keras
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+
+# Load stock price data (you can use any data source)
+# Example: Loading data from a CSV file
+data = pd.read_csv('stock_price_data.csv')
+data = data['Close'].values  # Assuming 'Close' contains the closing prices
+
+# Normalize the data
+scaler = MinMaxScaler()
+data = scaler.fit_transform(data.reshape(-1, 1))
+
+# Split data into training and testing sets
+train_size = int(len(data) * 0.8)
+train_data, test_data = data[:train_size], data[train_size:]
+
+# Create sequences for training
+def create_sequences(data, sequence_length):
+    X, y = [], []
+    for i in range(len(data) - sequence_length):
+        X.append(data[i:i+sequence_length])
+        y.append(data[i+sequence_length])
+    return np.array(X), np.array(y)
+
+sequence_length = 10  # Adjust this based on your needs
+X_train, y_train = create_sequences(train_data, sequence_length)
+X_test, y_test = create_sequences(test_data, sequence_length)
+
+# Build an LSTM model
+model = Sequential()
+model.add(LSTM(50, activation='relu', input_shape=(sequence_length, 1)))
+model.add(Dense(1))
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+# Train the model
+model.fit(X_train, y_train, epochs=50, batch_size=32)
+
+# Make predictions
+train_predictions = model.predict(X_train)
+test_predictions = model.predict(X_test)
+
+# Inverse transform the predictions to get real stock prices
+train_predictions = scaler.inverse_transform(train_predictions)
+test_predictions = scaler.inverse_transform(test_predictions)
+
+# Plot the results
+plt.plot(data, label='Original Data', color='b')
+plt.plot(range(sequence_length, len(train_predictions) + sequence_length), train_predictions, label='Training Predictions', color='g')
+plt.plot(range(len(train_predictions) + 2*sequence_length, len(train_predictions) + 2*sequence_length + len(test_predictions), test_predictions, label='Test Predictions', color='r')
+plt.legend()
+plt.show()
